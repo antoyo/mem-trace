@@ -1,0 +1,17 @@
+[package]
+name = "mem-trace-remote"
+version = "0.1.0"
+authors = ["Antoni Boucher <bouanto@zoho.com>"]
+edition = "2018"
+
+[dependencies]
+backtrace = { version = "0.3.56", features = ["serialize-rustc"] }
+dashmap = "4.0.2"
+jemallocator = "0.3.2"
+libc = "0.2.93"
+once_cell = "1.7.2"
+rmp-serialize = "0.8.1"
+rustc-serialize = "0.3.24"
+
+[lib]
+crate-type = ["dylib"]

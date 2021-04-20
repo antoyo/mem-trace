@@ -20,7 +20,9 @@ fn main() {
         let listener = TcpListener::bind("127.0.0.1:45423").expect("bind");
         for stream in listener.incoming() {
             match stream {
-                Ok(stream) => handle_client(stream),
+                Ok(stream) => {
+                    thread::spawn(move || handle_client(stream));
+                },
                 Err(error) => eprintln!("Accept error: {}", error),
             }
         }
@@ -34,13 +36,25 @@ fn main() {
 
     for line in reader.lines() {
         if let Ok(line) = line {
-            match usize::from_str_radix(&line, 16) {
-                Ok(address) =>
-                    match MAP.get(&address) {
-                        Some(backtrace) => println!("{:?}", *backtrace),
-                        None => eprintln!("Can't find address: 0x{:X}", address),
-                    },
-                Err(error) => eprintln!("Can't parse address: {}", error),
+            if line == "len" {
+                println!("Length: {}", MAP.len());
+            }
+            else {
+                let line =
+                    if line.starts_with("0x") {
+                        &line[2..]
+                    }
+                    else {
+                        &line
+                    };
+                match usize::from_str_radix(&line, 16) {
+                    Ok(address) =>
+                        match MAP.get(&address) {
+                            Some(backtrace) => println!("{:?}", *backtrace),
+                            None => eprintln!("Can't find address: 0x{:X}", address),
+                        },
+                    Err(error) => eprintln!("Can't parse address: {}", error),
+                }
             }
         }
         print!("> ");
@@ -72,6 +86,9 @@ fn handle_client(mut stream: TcpStream) {
             msg_read = false;
             if message_size.is_none() {
                 message_size = buf_to_u32(&buffer);
+                if message_size.is_none() {
+                    continue;
+                }
                 if buffer.len() <= HEADER_SIZE {
                     buffer = vec![];
                 }

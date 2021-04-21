@@ -6,6 +6,7 @@ edition = "2018"
 
 [dependencies]
 backtrace = { version = "0.3.56", features = ["serialize-rustc"] }
+crossbeam = "0.8.0"
 dashmap = "4.0.2"
 jemallocator = "0.3.2"
 libc = "0.2.93"

@@ -1,7 +1,9 @@
-/// Create another lib which will work with a demon:
-/// this way, even if the process fork, all the data will be sent to the same process.
+//! Create another lib which will work with a demon:
+//! this way, even if the process fork, all the data will be sent to the same process.
 
 // TODO: also support posix_memalign
+// TODO: count allocated memory (- freed memory) for different GCC allocators.
+// TODO: track where allocated memory is from.
 
 use core::mem;
 use std::process;
@@ -22,7 +24,7 @@ static SET: Lazy<DashSet<u32>> = Lazy::new(|| {
     DashSet::new()
 });
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn malloc(size: size_t) -> *mut c_void {
     let pid = process::id();
     if !SET.contains(&pid) {
@@ -41,7 +43,7 @@ pub extern "C" fn malloc(size: size_t) -> *mut c_void {
     }
 }
 
-/*#[no_mangle]
+/*#[unsafe(no_mangle)]
 pub extern "C" fn gcc_jit_context_new_rvalue_from_int(ctxt: *mut c_void, numeric_type: *mut c_void, value: c_int) -> *mut c_void {
     println!("new rvalue from int");
     unsafe {
@@ -51,7 +53,8 @@ pub extern "C" fn gcc_jit_context_new_rvalue_from_int(ctxt: *mut c_void, numeric
     }
 }*/
 
-#[no_mangle]
+/// Operator new.
+#[unsafe(no_mangle)]
 pub extern "C" fn _Znwm(size: size_t) -> *mut c_void {
     let pid = process::id();
     if !SET.contains(&pid) {
@@ -70,7 +73,39 @@ pub extern "C" fn _Znwm(size: size_t) -> *mut c_void {
     }
 }
 
-#[no_mangle]
+macro_rules! allocator_function {
+    ($cstring:expr, $name:ident ( $($param:ident: $type:ty),* )) => {
+#[unsafe(no_mangle)]
+pub extern "C" fn $name($($param: $type),*) -> *mut c_void {
+    let pid = process::id();
+    if !SET.contains(&pid) {
+        println!("***** New PID for {}: {}", stringify!($name), pid);
+        SET.insert(pid);
+    }
+
+    let backtrace = Backtrace::new_unresolved();
+    unsafe {
+        let orig_malloc = dlsym(RTLD_NEXT, $cstring.as_ptr());
+        let orig_malloc: fn($($type),*) -> *mut c_void = mem::transmute(orig_malloc);
+        let ptr = orig_malloc($($param),*);
+        MAP.insert(ptr as usize, backtrace);
+        ptr
+    }
+}
+    };
+}
+
+allocator_function!(
+    c"_Z26ggc_internal_cleared_allocmPFvPvEmm",
+    _Z26ggc_internal_cleared_allocmPFvPvEmm(size: size_t, param1: *mut c_void, param2: size_t, param3: size_t)
+);
+
+allocator_function!(
+    c"_Z9rtx_alloc8rtx_code",
+    _Z9rtx_alloc8rtx_code(code: c_int)
+);
+
+#[unsafe(no_mangle)]
 pub extern "C" fn print_trace(size: size_t) {
     println!("PID: {}", std::process::id());
     println!("Len: {}", MAP.len());

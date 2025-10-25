@@ -81,3 +81,43 @@ Len: 8
 ----
 
 This shows that the allocation happened in the function `memory_usage::func` in file `src/main.rs` at line 4, column 15:
+
+=== Profile memory
+
+Build with the `profiler` feature enabled:
+
+----
+cargo build --features profiler
+----
+
+Run your program using `LD_PRELOAD` to load `mem-trace`:
+
+----
+LD_PRELOAD=path/to/libmem_trace.so ./program
+----
+
+This will print at regular interval the 10 top locations for memory usage, in reverse order (that is, the location where most memory is allocated will be printed last):
+
+----
+[…]
+
+# 1: 1024 bytes
+[…]
+   5: memory_usage::func
+             at src/main.rs:5:5
+   6: memory_usage::call_func
+             at src/main.rs:15:9
+   7: memory_usage::main
+             at src/main.rs:20:5
+[…]
+
+# 0: 1600000000 bytes
+[…]
+   5: memory_usage::func
+             at src/main.rs:4:15
+   6: memory_usage::call_func
+             at src/main.rs:15:9
+   7: memory_usage::main
+             at src/main.rs:20:5
+[…]
+----

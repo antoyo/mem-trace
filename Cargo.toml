@@ -11,5 +11,8 @@ jemallocator = "0.3.2"
 libc = "0.2.93"
 once_cell = "1.7.2"
 
+[features]
+profiler = []
+
 [lib]
 crate-type = ["dylib"]

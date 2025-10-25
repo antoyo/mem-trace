@@ -24,55 +24,6 @@ static SET: Lazy<DashSet<u32>> = Lazy::new(|| {
     DashSet::new()
 });
 
-#[unsafe(no_mangle)]
-pub extern "C" fn malloc(size: size_t) -> *mut c_void {
-    let pid = process::id();
-    if !SET.contains(&pid) {
-        println!("******* New PID: {}", pid);
-        SET.insert(pid);
-    }
-
-    let backtrace = Backtrace::new_unresolved();
-    unsafe {
-        let orig_malloc = dlsym(RTLD_NEXT, b"malloc\0".as_ptr() as *const i8);
-        let orig_malloc: fn(size_t) -> *mut c_void = mem::transmute(orig_malloc);
-        let ptr = orig_malloc(size);
-        MAP.insert(ptr as usize, backtrace);
-        //println!("malloc 0x{:x}", ptr as usize);
-        ptr
-    }
-}
-
-/*#[unsafe(no_mangle)]
-pub extern "C" fn gcc_jit_context_new_rvalue_from_int(ctxt: *mut c_void, numeric_type: *mut c_void, value: c_int) -> *mut c_void {
-    println!("new rvalue from int");
-    unsafe {
-        let orig_malloc = dlsym(RTLD_NEXT, b"gcc_jit_context_new_rvalue_from_int\0".as_ptr() as *const i8);
-        let orig_malloc: fn(*mut c_void, *mut c_void, c_int) -> *mut c_void = mem::transmute(orig_malloc);
-        orig_malloc(ctxt, numeric_type, value)
-    }
-}*/
-
-/// Operator new.
-#[unsafe(no_mangle)]
-pub extern "C" fn _Znwm(size: size_t) -> *mut c_void {
-    let pid = process::id();
-    if !SET.contains(&pid) {
-        println!("***** New PID for operator new: {}", pid);
-        SET.insert(pid);
-    }
-
-    let backtrace = Backtrace::new_unresolved();
-    unsafe {
-        let orig_malloc = dlsym(RTLD_NEXT, b"_Znwm\0".as_ptr() as *const i8);
-        let orig_malloc: fn(size_t) -> *mut c_void = mem::transmute(orig_malloc);
-        let ptr = orig_malloc(size);
-        MAP.insert(ptr as usize, backtrace);
-        //println!("new 0x{:x}", ptr as usize);
-        ptr
-    }
-}
-
 macro_rules! allocator_function {
     ($cstring:expr, $name:ident ( $($param:ident: $type:ty),* )) => {
 #[unsafe(no_mangle)]
@@ -94,6 +45,17 @@ pub extern "C" fn $name($($param: $type),*) -> *mut c_void {
 }
     };
 }
+
+allocator_function!(
+    c"malloc",
+    malloc(size: size_t)
+);
+
+// Operator new.
+allocator_function!(
+    c"_Znwm",
+    _Znwm(size: size_t)
+);
 
 allocator_function!(
     c"_Z26ggc_internal_cleared_allocmPFvPvEmm",

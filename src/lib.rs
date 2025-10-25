@@ -2,9 +2,9 @@
 //! this way, even if the process fork, all the data will be sent to the same process.
 
 // TODO: also support posix_memalign
-// TODO: add features to be able to only disable the tracer.
 // TODO: count allocated memory (- freed memory) for different GCC allocators.
-// TODO: track where allocated memory is from.
+// TODO: count deallocated memory, that is, do not show the total amount of allocated memory, but
+// show the result of: allocated memory - freed memory.
 
 use core::mem;
 #[cfg(feature="profiler")]
@@ -18,8 +18,11 @@ use std::thread;
 #[cfg(feature="profiler")]
 use std::thread::JoinHandle;
 
+#[cfg(any(feature="tracer", feature="profiler"))]
 use backtrace::Backtrace;
-use dashmap::{DashMap, DashSet};
+#[cfg(any(feature="tracer", feature="profiler"))]
+use dashmap::DashMap;
+use dashmap::DashSet;
 use libc::{self, RTLD_NEXT, c_int, c_void, dlsym, size_t};
 
 #[cfg(feature="profiler")]
@@ -27,6 +30,7 @@ const ALLOCATION_COUNT_TO_PRINT: usize = 10;
 #[cfg(feature="profiler")]
 const PRINT_INTERVAL: Duration = Duration::from_secs(30);
 
+#[cfg(feature="tracer")]
 static MAP: LazyLock<DashMap<usize, Backtrace>> = LazyLock::new(|| {
     DashMap::new()
 });
@@ -125,6 +129,7 @@ pub extern "C" fn $name($size_param: $size_type $(,$param: $type)*) -> *mut c_vo
         SET.insert(pid);
     }
 
+    #[cfg(any(feature="tracer", feature="profiler"))]
     let backtrace = Backtrace::new_unresolved();
 
     #[cfg(feature="profiler")]
@@ -138,7 +143,10 @@ pub extern "C" fn $name($size_param: $size_type $(,$param: $type)*) -> *mut c_vo
         let orig_malloc = dlsym(RTLD_NEXT, $cstring.as_ptr());
         let orig_malloc: fn($size_type, $($type),*) -> *mut c_void = mem::transmute(orig_malloc);
         let ptr = orig_malloc($size_param, $($param),*);
+
+        #[cfg(feature="tracer")]
         MAP.insert(ptr as usize, backtrace);
+
         ptr
     }
 }
@@ -166,6 +174,7 @@ allocator_function!(
     _Z9rtx_alloc8rtx_code(code: c_int)
 );
 
+#[cfg(feature="tracer")]
 #[unsafe(no_mangle)]
 pub extern "C" fn print_trace(size: size_t) {
     println!("PID: {}", std::process::id());

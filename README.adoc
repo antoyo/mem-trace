@@ -9,6 +9,12 @@
 
 === Trace memory
 
+Build with the `tracer` feature enabled:
+
+----
+cargo build --features tracer
+----
+
 Tracing memory allows you to get the stacktrace leading to the allocation of a specific pointer.
 
 Start your program with `gdb` and use `LD_PRELOAD` to load `mem-trace`:

@@ -12,6 +12,7 @@ libc = "0.2.93"
 
 [features]
 profiler = []
+tracer = []
 
 [lib]
 crate-type = ["dylib"]

@@ -1,0 +1,81 @@
+= mem-trace: A memory tracer and profiler
+
+`mem-trace` can be used for 2 purposes:
+
+ * trace memory, e.g. find the stacktrace leading to the allocation of a specific pointer.
+ * profile memory, e.g. find the stacktraces where most bytes of memory are allocated.
+
+== Usage
+
+=== Trace memory
+
+Tracing memory allows you to get the stacktrace leading to the allocation of a specific pointer.
+
+Start your program with `gdb` and use `LD_PRELOAD` to load `mem-trace`:
+
+----
+gdb --args env LD_PRELOAD=path/to/libmem_trace.so ./program
+----
+
+Inspect your program in `gdb` to get the address of the pointer you want to trace.
+Then, call `mem_trace::print_trace` in the debugger to get the stacktrace leading to the allocation of an address:
+
+----
+call mem_trace::print_trace(0x7fffebac2010)
+----
+
+You should get an output that looks like:
+
+----
+PID: 227045
+Len: 8
+   0: malloc
+             at /home/user/projects/mem-trace/src/lib.rs:37:21
+   1: alloc::raw_vec::RawVecInner<A>::try_allocate_in
+   2: alloc::raw_vec::RawVecInner<A>::with_capacity_in
+             at /home/user/.rustup/toolchains/nightly-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/alloc/src/raw_vec/mod.rs:419:15
+   3: alloc::raw_vec::RawVec<T,A>::with_capacity_in
+             at /home/user/.rustup/toolchains/nightly-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/alloc/src/raw_vec/mod.rs:187:20
+      alloc::vec::Vec<T,A>::with_capacity_in
+             at /home/user/.rustup/toolchains/nightly-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/alloc/src/vec/mod.rs:929:20
+      <T as alloc::vec::spec_from_elem::SpecFromElem>::from_elem
+             at /home/user/.rustup/toolchains/nightly-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/alloc/src/vec/spec_from_elem.rs:26:21
+   4: alloc::vec::from_elem
+             at /home/user/.rustup/toolchains/nightly-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/alloc/src/vec/mod.rs:3475:5
+   5: memory_usage::func
+             at src/main.rs:4:15
+   6: memory_usage::call_func
+             at src/main.rs:15:9
+   7: memory_usage::main
+             at src/main.rs:20:5
+   8: core::ops::function::FnOnce::call_once
+             at /home/user/.rustup/toolchains/nightly-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/ops/function.rs:250:5
+   9: std::sys::backtrace::__rust_begin_short_backtrace
+             at /home/user/.rustup/toolchains/nightly-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/std/src/sys/backtrace.rs:158:18
+  10: std::rt::lang_start::{{closure}}
+             at /home/user/.rustup/toolchains/nightly-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/std/src/rt.rs:206:18
+  11: core::ops::function::impls::<impl core::ops::function::FnOnce<A> for &F>::call_once
+             at /rustc/9725c4baacef19345e13f91b27e66e10ef5592ae/library/core/src/ops/function.rs:287:21
+      std::panicking::catch_unwind::do_call
+             at /rustc/9725c4baacef19345e13f91b27e66e10ef5592ae/library/std/src/panicking.rs:590:40
+      std::panicking::catch_unwind
+             at /rustc/9725c4baacef19345e13f91b27e66e10ef5592ae/library/std/src/panicking.rs:553:19
+      std::panic::catch_unwind
+             at /rustc/9725c4baacef19345e13f91b27e66e10ef5592ae/library/std/src/panic.rs:359:14
+      std::rt::lang_start_internal::{{closure}}
+             at /rustc/9725c4baacef19345e13f91b27e66e10ef5592ae/library/std/src/rt.rs:175:24
+      std::panicking::catch_unwind::do_call
+             at /rustc/9725c4baacef19345e13f91b27e66e10ef5592ae/library/std/src/panicking.rs:590:40
+      std::panicking::catch_unwind
+             at /rustc/9725c4baacef19345e13f91b27e66e10ef5592ae/library/std/src/panicking.rs:553:19
+      std::panic::catch_unwind
+             at /rustc/9725c4baacef19345e13f91b27e66e10ef5592ae/library/std/src/panic.rs:359:14
+      std::rt::lang_start_internal
+             at /rustc/9725c4baacef19345e13f91b27e66e10ef5592ae/library/std/src/rt.rs:171:5
+  12: std::rt::lang_start
+             at /home/user/.rustup/toolchains/nightly-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/std/src/rt.rs:205:5
+  13: main
+  14: <unknown>
+  15: __libc_start_main
+  16: _start
+----

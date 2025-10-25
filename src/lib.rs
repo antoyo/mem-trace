@@ -12,6 +12,7 @@ use std::hash::Hash;
 #[cfg(feature="profiler")]
 use std::time::{Duration, Instant};
 use std::process;
+use std::sync::LazyLock;
 #[cfg(feature="profiler")]
 use std::thread;
 #[cfg(feature="profiler")]
@@ -20,29 +21,27 @@ use std::thread::JoinHandle;
 use backtrace::Backtrace;
 use dashmap::{DashMap, DashSet};
 use libc::{self, RTLD_NEXT, c_int, c_void, dlsym, size_t};
-// TODO: switch to std::sync::LazyLock.
-use once_cell::sync::Lazy;
 
 #[cfg(feature="profiler")]
 const ALLOCATION_COUNT_TO_PRINT: usize = 10;
 #[cfg(feature="profiler")]
 const PRINT_INTERVAL: Duration = Duration::from_secs(30);
 
-static MAP: Lazy<DashMap<usize, Backtrace>> = Lazy::new(|| {
+static MAP: LazyLock<DashMap<usize, Backtrace>> = LazyLock::new(|| {
     DashMap::new()
 });
 
 #[cfg(feature="profiler")]
-static USAGE_MAP: Lazy<DashMap<BacktraceWrapper, usize>> = Lazy::new(|| {
+static USAGE_MAP: LazyLock<DashMap<BacktraceWrapper, usize>> = LazyLock::new(|| {
     DashMap::new()
 });
 
-static SET: Lazy<DashSet<u32>> = Lazy::new(|| {
+static SET: LazyLock<DashSet<u32>> = LazyLock::new(|| {
     DashSet::new()
 });
 
 #[cfg(feature="profiler")]
-static THREAD: Lazy<JoinHandle<()>> = Lazy::new(|| {
+static THREAD: LazyLock<JoinHandle<()>> = LazyLock::new(|| {
     thread::spawn(move || {
         let mut time = Instant::now();
         loop {
@@ -110,7 +109,7 @@ impl Hash for BacktraceWrapper {
 
 #[cfg(feature="profiler")]
 fn use_thread() {
-    Lazy::force(&THREAD);
+    LazyLock::force(&THREAD);
 }
 
 macro_rules! allocator_function {

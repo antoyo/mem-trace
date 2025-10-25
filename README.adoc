@@ -79,3 +79,5 @@ Len: 8
   15: __libc_start_main
   16: _start
 ----
+
+This shows that the allocation happened in the function `memory_usage::func` in file `src/main.rs` at line 4, column 15:
